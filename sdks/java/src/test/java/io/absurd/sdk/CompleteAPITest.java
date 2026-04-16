@@ -114,7 +114,7 @@ public class CompleteAPITest {
     private static void testSpawnResult() {
         System.out.println("Testing SpawnResult...");
         
-        SpawnResult result = new SpawnResult("run-123", "test-queue", "test-task");
+        SpawnResult result = new SpawnResult("task-123", "run-123", "test-queue", "test-task");
         assertEquals("run-123", result.getRunId());
         assertEquals("test-queue", result.getQueueName());
         assertEquals("test-task", result.getTaskName());

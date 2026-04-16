@@ -32,9 +32,9 @@ public class TaskContextImplManualTest {
         System.out.println("Testing basic functionality...");
         
         // Create mock objects
-        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "test-task", "{}", 1);
+        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1);
         MockDbClient mockDbClient = new MockDbClient();
-        
+
         TaskContextImpl context = new TaskContextImpl(mockDbClient, claimedTask, "test-queue", Map.of("key", "value"));
         
         // Test basic properties
@@ -88,7 +88,7 @@ public class TaskContextImplManualTest {
     private static void testMethodSignatures() {
         System.out.println("Testing method signatures...");
         
-        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "test-task", "{}", 1);
+        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1);
         MockDbClient mockDbClient = new MockDbClient();
         TaskContextImpl context = new TaskContextImpl(mockDbClient, claimedTask, "test-queue", Map.of());
         
@@ -174,8 +174,9 @@ public class TaskContextImplManualTest {
         }
         
         @Override
-        public String spawnTask(String queue, String taskName, String paramsJson, String optionsJson) {
-            return "mock-run-" + System.currentTimeMillis();
+        public DbClient.SpawnRecord spawnTask(String queue, String taskName, String paramsJson, String optionsJson) {
+            String id = "mock-" + System.currentTimeMillis();
+            return new DbClient.SpawnRecord(id, id);
         }
         
         @Override

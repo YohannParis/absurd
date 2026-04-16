@@ -119,21 +119,24 @@ public class Absurd implements Closeable {
     public SpawnResult spawn(SpawnOptions options) throws AbsurdException {
         String queue = options.getQueueName() != null ? options.getQueueName() : defaultQueueName;
         String paramsJson = options.getInput() != null ? options.getInput() : "null";
-        String runId = getDbClient().spawnTask(queue, options.getTaskName(), paramsJson, null);
-        return new SpawnResult(runId, queue, options.getTaskName());
+        String optionsJson = buildSpawnOptions(options.getTaskName());
+        DbClient.SpawnRecord rec = getDbClient().spawnTask(queue, options.getTaskName(), paramsJson, optionsJson);
+        return new SpawnResult(rec.taskId(), rec.runId(), queue, options.getTaskName());
     }
 
     public SpawnResult spawn(String taskName, Object params) throws AbsurdException {
         String paramsJson = toJson(params);
-        String runId = getDbClient().spawnTask(defaultQueueName, taskName, paramsJson, null);
-        return new SpawnResult(runId, defaultQueueName, taskName);
+        String optionsJson = buildSpawnOptions(taskName);
+        DbClient.SpawnRecord rec = getDbClient().spawnTask(defaultQueueName, taskName, paramsJson, optionsJson);
+        return new SpawnResult(rec.taskId(), rec.runId(), defaultQueueName, taskName);
     }
 
     public SpawnResult spawn(String taskName, Object params, SpawnOptions opts) throws AbsurdException {
         String queue = opts != null && opts.getQueueName() != null ? opts.getQueueName() : defaultQueueName;
         String paramsJson = toJson(params);
-        String runId = getDbClient().spawnTask(queue, taskName, paramsJson, null);
-        return new SpawnResult(runId, queue, taskName);
+        String optionsJson = buildSpawnOptions(taskName);
+        DbClient.SpawnRecord rec = getDbClient().spawnTask(queue, taskName, paramsJson, optionsJson);
+        return new SpawnResult(rec.taskId(), rec.runId(), queue, taskName);
     }
 
     // ---- Events ----
@@ -278,6 +281,14 @@ public class Absurd implements Closeable {
             }
         }
         return dbClient;
+    }
+
+    private String buildSpawnOptions(String taskName) throws AbsurdException {
+        TaskDefinition<?, ?> def = taskDefinitions.get(taskName);
+        if (def == null) return null;
+        RetryStrategy strategy = def.getRetryStrategy();
+        if (strategy == null) return null;
+        return toJson(Map.of("max_attempts", strategy.getMaxAttempts()));
     }
 
     private String toJson(Object obj) throws AbsurdException {
