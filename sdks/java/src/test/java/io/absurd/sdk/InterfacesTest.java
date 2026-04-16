@@ -49,7 +49,7 @@ public class InterfacesTest {
     }
     
     private static void testSpawnResult() {
-        SpawnResult result = new SpawnResult("run-123", "test-queue", "test-task");
+        SpawnResult result = new SpawnResult("task-123", "run-123", "test-queue", "test-task");
         assertEquals("run-123", result.getRunId());
         assertEquals("test-queue", result.getQueueName());
         assertEquals("test-task", result.getTaskName());

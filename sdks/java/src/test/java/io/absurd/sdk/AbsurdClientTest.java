@@ -115,7 +115,7 @@ class AbsurdClientTest {
     void createQueueWithNameCallsDbClient() throws AbsurdException {
         AtomicReference<String> created = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public void createQueue(String q, String retry, String cancel) {
+            @Override public void createQueue(String q) {
                 created.set(q);
             }
         };
@@ -170,11 +170,11 @@ class AbsurdClientTest {
         AtomicReference<String> capturedTask = new AtomicReference<>();
         AtomicReference<String> capturedInput = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
+            @Override public DbClient.SpawnRecord spawnTask(String q, String name, String paramsJson, String optsJson) {
                 capturedQueue.set(q);
                 capturedTask.set(name);
                 capturedInput.set(paramsJson);
-                return "run-999";
+                return new DbClient.SpawnRecord("task-999", "run-999");
             }
         };
 
@@ -184,6 +184,7 @@ class AbsurdClientTest {
         assertEquals("test-queue", capturedQueue.get());
         assertEquals("my-task", capturedTask.get());
         assertTrue(capturedInput.get().contains("key"));
+        assertEquals("task-999", result.getTaskId());
         assertEquals("run-999", result.getRunId());
         assertEquals("test-queue", result.getQueueName());
     }
@@ -192,9 +193,9 @@ class AbsurdClientTest {
     void spawnWithOptsOverridesQueue() throws AbsurdException {
         AtomicReference<String> capturedQueue = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
+            @Override public DbClient.SpawnRecord spawnTask(String q, String name, String paramsJson, String optsJson) {
                 capturedQueue.set(q);
-                return "run-1";
+                return new DbClient.SpawnRecord("t-1", "run-1");
             }
         };
 
@@ -211,9 +212,9 @@ class AbsurdClientTest {
     void spawnViaSpawnOptionsUsesExplicitQueue() throws AbsurdException {
         AtomicReference<String> capturedQueue = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
+            @Override public DbClient.SpawnRecord spawnTask(String q, String name, String paramsJson, String optsJson) {
                 capturedQueue.set(q);
-                return "run-2";
+                return new DbClient.SpawnRecord("t-2", "run-2");
             }
         };
 
@@ -385,7 +386,7 @@ class AbsurdClientTest {
         @Override public List<DbClient.ClaimedTask> claimTasks(String q, String wid, int t, int b) {
             throw new UnsupportedOperationException("claimTasks not stubbed");
         }
-        @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
+        @Override public DbClient.SpawnRecord spawnTask(String q, String name, String paramsJson, String optsJson) {
             throw new UnsupportedOperationException("spawnTask not stubbed");
         }
         @Override public void completeTask(String q, String runId, String output) {
@@ -403,10 +404,10 @@ class AbsurdClientTest {
         @Override public String getTaskResult(String q, String runId) {
             throw new UnsupportedOperationException("getTaskResult not stubbed");
         }
-        @Override public void createQueue(String q, String retry, String cancel) {
+        @Override public void createQueue(String q) {
             throw new UnsupportedOperationException("createQueue not stubbed");
         }
-        @Override public void heartbeatTask(String q, String runId) {
+        @Override public void heartbeatTask(String q, String runId, int extensionSecs) {
             throw new UnsupportedOperationException("heartbeatTask not stubbed");
         }
         @Override public void dropQueue(String q) {

@@ -94,7 +94,7 @@ class WorkerLoopTest {
         AtomicReference<String> completed = new AtomicReference<>();
         AtomicReference<String> failed = new AtomicReference<>();
         List<DbClient.ClaimedTask> tasks = List.of(
-            new DbClient.ClaimedTask("run-1", "my-task", "\"hello\"", 1)
+            new DbClient.ClaimedTask("run-1", "task-1", "my-task", "\"hello\"", 1, 3)
         );
         DbClient client = stubDbClient(tasks, completed, failed);
 
@@ -118,7 +118,7 @@ class WorkerLoopTest {
         AtomicReference<String> completed = new AtomicReference<>();
         AtomicReference<String> failed = new AtomicReference<>();
         List<DbClient.ClaimedTask> tasks = List.of(
-            new DbClient.ClaimedTask("run-2", "unknown-task", "{}", 1)
+            new DbClient.ClaimedTask("run-2", "task-2", "unknown-task", "{}", 1, 3)
         );
         DbClient client = stubDbClient(tasks, completed, failed);
 
@@ -145,7 +145,7 @@ class WorkerLoopTest {
         AtomicReference<String> completed = new AtomicReference<>();
         AtomicReference<String> failed = new AtomicReference<>();
         List<DbClient.ClaimedTask> tasks = List.of(
-            new DbClient.ClaimedTask("run-3", "suspend-task", "{}", 1)
+            new DbClient.ClaimedTask("run-3", "task-3", "suspend-task", "{}", 1, 3)
         );
         DbClient client = stubDbClient(tasks, completed, failed);
 
@@ -173,7 +173,7 @@ class WorkerLoopTest {
         AtomicReference<String> completed = new AtomicReference<>();
         AtomicReference<String> failed = new AtomicReference<>();
         List<DbClient.ClaimedTask> tasks = List.of(
-            new DbClient.ClaimedTask("run-4", "boom", "{}", 1)
+            new DbClient.ClaimedTask("run-4", "task-4", "boom", "{}", 1, 3)
         );
         DbClient client = stubDbClient(tasks, completed, failed);
 

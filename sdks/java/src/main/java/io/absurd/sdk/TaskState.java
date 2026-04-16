@@ -20,5 +20,8 @@ public enum TaskState {
     CANCELLED,
     
     /** Task timed out */
-    TIMED_OUT
+    TIMED_OUT,
+
+    /** Task is sleeping, waiting for a scheduled wake time or event signal */
+    SLEEPING
 }

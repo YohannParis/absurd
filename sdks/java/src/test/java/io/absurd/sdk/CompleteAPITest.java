@@ -114,7 +114,7 @@ public class CompleteAPITest {
     private static void testSpawnResult() {
         System.out.println("Testing SpawnResult...");
         
-        SpawnResult result = new SpawnResult("run-123", "test-queue", "test-task");
+        SpawnResult result = new SpawnResult("task-123", "run-123", "test-queue", "test-task");
         assertEquals("run-123", result.getRunId());
         assertEquals("test-queue", result.getQueueName());
         assertEquals("test-task", result.getTaskName());
@@ -239,17 +239,13 @@ public class CompleteAPITest {
     
     private static void testCreateQueueOptions() {
         System.out.println("Testing CreateQueueOptions...");
-        
+
         CreateQueueOptions options = CreateQueueOptions.builder()
                 .queueName("test-queue")
-                .retryStrategy(new RetryStrategy(3, 1000, 2.0))
-                .cancellationPolicy(new CancellationPolicy(30000, true))
                 .build();
-        
+
         assertEquals("test-queue", options.getQueueName());
-        assertNotNull(options.getRetryStrategy());
-        assertNotNull(options.getCancellationPolicy());
-        
+
         // Test builder validation
         try {
             CreateQueueOptions.builder().build();
@@ -257,7 +253,7 @@ public class CompleteAPITest {
         } catch (IllegalStateException e) {
             assertTrue(e.getMessage().contains("queueName must be specified"));
         }
-        
+
         System.out.println("✓ CreateQueueOptions works correctly");
     }
     

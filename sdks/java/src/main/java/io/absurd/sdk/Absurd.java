@@ -93,13 +93,11 @@ public class Absurd implements Closeable {
     // ---- Queue management ----
 
     public void createQueue(CreateQueueOptions options) throws AbsurdException {
-        String retryJson = toJson(toRetryMap(options.getRetryStrategy()));
-        String cancelJson = toJson(toCancelMap(options.getCancellationPolicy()));
-        getDbClient().createQueue(options.getQueueName(), retryJson, cancelJson);
+        getDbClient().createQueue(options.getQueueName());
     }
 
     public void createQueue(String queueName) throws AbsurdException {
-        getDbClient().createQueue(queueName, "{}", "{}");
+        getDbClient().createQueue(queueName);
     }
 
     public void dropQueue(String queueName) throws AbsurdException {
@@ -119,21 +117,24 @@ public class Absurd implements Closeable {
     public SpawnResult spawn(SpawnOptions options) throws AbsurdException {
         String queue = options.getQueueName() != null ? options.getQueueName() : defaultQueueName;
         String paramsJson = options.getInput() != null ? options.getInput() : "null";
-        String runId = getDbClient().spawnTask(queue, options.getTaskName(), paramsJson, null);
-        return new SpawnResult(runId, queue, options.getTaskName());
+        String optionsJson = buildSpawnOptions(options.getTaskName());
+        DbClient.SpawnRecord rec = getDbClient().spawnTask(queue, options.getTaskName(), paramsJson, optionsJson);
+        return new SpawnResult(rec.taskId(), rec.runId(), queue, options.getTaskName());
     }
 
     public SpawnResult spawn(String taskName, Object params) throws AbsurdException {
         String paramsJson = toJson(params);
-        String runId = getDbClient().spawnTask(defaultQueueName, taskName, paramsJson, null);
-        return new SpawnResult(runId, defaultQueueName, taskName);
+        String optionsJson = buildSpawnOptions(taskName);
+        DbClient.SpawnRecord rec = getDbClient().spawnTask(defaultQueueName, taskName, paramsJson, optionsJson);
+        return new SpawnResult(rec.taskId(), rec.runId(), defaultQueueName, taskName);
     }
 
     public SpawnResult spawn(String taskName, Object params, SpawnOptions opts) throws AbsurdException {
         String queue = opts != null && opts.getQueueName() != null ? opts.getQueueName() : defaultQueueName;
         String paramsJson = toJson(params);
-        String runId = getDbClient().spawnTask(queue, taskName, paramsJson, null);
-        return new SpawnResult(runId, queue, taskName);
+        String optionsJson = buildSpawnOptions(taskName);
+        DbClient.SpawnRecord rec = getDbClient().spawnTask(queue, taskName, paramsJson, optionsJson);
+        return new SpawnResult(rec.taskId(), rec.runId(), queue, taskName);
     }
 
     // ---- Events ----
@@ -280,6 +281,27 @@ public class Absurd implements Closeable {
         return dbClient;
     }
 
+    private String buildSpawnOptions(String taskName) throws AbsurdException {
+        TaskDefinition<?, ?> def = taskDefinitions.get(taskName);
+        if (def == null) return null;
+        RetryStrategy strategy = def.getRetryStrategy();
+        if (strategy == null) return null;
+
+        Map<String, Object> retryStrategy;
+        if (strategy.getInitialDelayMs() == 0) {
+            retryStrategy = Map.of("kind", "none");
+        } else if (strategy.getBackoffFactor() == 1.0) {
+            retryStrategy = Map.of("kind", "fixed",
+                "base_seconds", strategy.getInitialDelayMs() / 1000.0);
+        } else {
+            retryStrategy = Map.of("kind", "exponential",
+                "base_seconds", strategy.getInitialDelayMs() / 1000.0,
+                "factor", strategy.getBackoffFactor());
+        }
+
+        return toJson(Map.of("max_attempts", strategy.getMaxAttempts(), "retry_strategy", retryStrategy));
+    }
+
     private String toJson(Object obj) throws AbsurdException {
         if (obj == null) return "null";
         try {
@@ -287,24 +309,6 @@ public class Absurd implements Closeable {
         } catch (JsonProcessingException e) {
             throw new AbsurdException("Failed to serialize to JSON: " + e.getMessage(), e);
         }
-    }
-
-    private Map<String, Object> toRetryMap(RetryStrategy strategy) {
-        if (strategy == null) return Map.of();
-        return Map.of(
-            "max_attempts", strategy.getMaxAttempts(),
-            "initial_delay_ms", strategy.getInitialDelayMs(),
-            "backoff_factor", strategy.getBackoffFactor(),
-            "max_delay_ms", strategy.getMaxDelayMs()
-        );
-    }
-
-    private Map<String, Object> toCancelMap(CancellationPolicy policy) {
-        if (policy == null) return Map.of();
-        return Map.of(
-            "timeout_ms", policy.getTimeoutMs(),
-            "interruptible", policy.isInterruptible()
-        );
     }
 
     // ---- Builder ----
