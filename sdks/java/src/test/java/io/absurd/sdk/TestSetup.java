@@ -7,6 +7,7 @@ import org.testcontainers.utility.MountableFile;
 
 import javax.sql.DataSource;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.*;
 import java.time.Instant;
@@ -51,6 +52,11 @@ public final class TestSetup {
     // Relative to sdks/java/ — the Gradle working directory during tests.
     private static final Path ABSURD_SQL = Path.of("../../sql/absurd.sql");
 
+    // PostgreSQL identifier: starts with letter/underscore, followed by letters/digits/underscores.
+    // Used to validate queue names before embedding them in TRUNCATE statements.
+    private static final java.util.regex.Pattern SAFE_IDENTIFIER =
+        java.util.regex.Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
+
     private static final PostgreSQLContainer<?> CONTAINER;
     private static final HikariDataSource DATA_SOURCE;
 
@@ -61,6 +67,12 @@ public final class TestSetup {
             DATA_SOURCE = createPool(CONTAINER, 1);
             loadSchema();
             createQueue(DEFAULT_QUEUE);
+            // Close the pool when the JVM exits so connections are released cleanly.
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                if (!DATA_SOURCE.isClosed()) {
+                    DATA_SOURCE.close();
+                }
+            }, "TestSetup-shutdown"));
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
         }
@@ -75,8 +87,16 @@ public final class TestSetup {
         return createAbsurd(DEFAULT_QUEUE);
     }
 
-    /** Creates an {@link Absurd} client pointed at the test database using the given queue. */
+    /**
+     * Creates an {@link Absurd} client pointed at the test database using the given queue.
+     *
+     * @param queueName the queue name (must be a valid PostgreSQL identifier)
+     * @throws IllegalArgumentException if queueName is null or empty
+     */
     public static Absurd createAbsurd(String queueName) {
+        if (queueName == null || queueName.isBlank()) {
+            throw new IllegalArgumentException("queueName cannot be null or empty");
+        }
         return Absurd.builder()
             .dataSource(DATA_SOURCE)
             .queueName(queueName)
@@ -141,9 +161,12 @@ public final class TestSetup {
     /**
      * Truncates all five queue tables ({@code t_}, {@code r_}, {@code c_},
      * {@code e_}, {@code w_}), resetting the queue to an empty state between tests.
+     *
+     * @param queueName must match {@code [a-zA-Z_][a-zA-Z0-9_]*} — validated before use
+     *                  to prevent SQL injection since table names cannot be parameterized
      */
     public static void cleanupQueue(String queueName) throws SQLException {
-        // Table names are controlled by test code, not user input.
+        requireSafeIdentifier(queueName, "queueName");
         String sql = String.format(
             "TRUNCATE absurd.t_%1$s, absurd.r_%1$s, absurd.c_%1$s, absurd.e_%1$s, absurd.w_%1$s",
             queueName
@@ -171,6 +194,12 @@ public final class TestSetup {
     }
 
     private static void loadSchema() throws IOException, InterruptedException {
+        if (!Files.exists(ABSURD_SQL)) {
+            throw new IllegalStateException(
+                "absurd.sql not found at " + ABSURD_SQL.toAbsolutePath() +
+                ". Ensure tests are run from the sdks/java/ directory."
+            );
+        }
         CONTAINER.copyFileToContainer(
             MountableFile.forHostPath(ABSURD_SQL.toAbsolutePath()),
             "/tmp/absurd.sql"
@@ -191,6 +220,21 @@ public final class TestSetup {
              PreparedStatement stmt = conn.prepareStatement("SELECT absurd.create_queue(?)")) {
             stmt.setString(1, queueName);
             stmt.execute();
+        }
+    }
+
+    /**
+     * Validates that {@code name} is a safe PostgreSQL identifier before embedding
+     * it in a DDL statement where parameterization is not possible.
+     */
+    private static void requireSafeIdentifier(String name, String paramName) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException(paramName + " cannot be null or empty");
+        }
+        if (!SAFE_IDENTIFIER.matcher(name).matches()) {
+            throw new IllegalArgumentException(
+                paramName + " must be a valid PostgreSQL identifier ([a-zA-Z_][a-zA-Z0-9_]*), got: " + name
+            );
         }
     }
 }
