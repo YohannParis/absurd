@@ -104,11 +104,14 @@ public class Absurd {
      * @return a new worker instance
      */
     public Worker createWorker(WorkerOptions options) {
+        if (options == null) {
+            throw new IllegalArgumentException("options cannot be null");
+        }
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(connectionString);
         HikariDataSource dataSource = new HikariDataSource(config);
         DbClient dbClient = new DbClient(dataSource);
-        return new WorkerLoop(this, options, dbClient);
+        return new WorkerLoop(this, options, dbClient, dataSource);
     }
     
     /**

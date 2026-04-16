@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.absurd.sdk.*;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -17,6 +19,7 @@ public class WorkerLoop implements Worker {
     private final Absurd absurd;
     private final WorkerOptions options;
     final DbClient dbClient;
+    private final Closeable dataSourceCloseable;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final String workerId = UUID.randomUUID().toString();
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -25,9 +28,14 @@ public class WorkerLoop implements Worker {
     private volatile Thread loopThread;
 
     public WorkerLoop(Absurd absurd, WorkerOptions options, DbClient dbClient) {
+        this(absurd, options, dbClient, null);
+    }
+
+    public WorkerLoop(Absurd absurd, WorkerOptions options, DbClient dbClient, Closeable dataSourceCloseable) {
         this.absurd = absurd;
         this.options = options;
         this.dbClient = dbClient;
+        this.dataSourceCloseable = dataSourceCloseable;
     }
 
     @Override
@@ -58,6 +66,13 @@ public class WorkerLoop implements Worker {
                 loopThread.join();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            }
+        }
+        if (dataSourceCloseable != null) {
+            try {
+                dataSourceCloseable.close();
+            } catch (IOException e) {
+                log.warning("Error closing data source: " + e.getMessage());
             }
         }
     }
@@ -94,9 +109,8 @@ public class WorkerLoop implements Worker {
                             try {
                                 executeTask(task);
                             } finally {
-                                int remaining = inFlightCount.decrementAndGet();
-                                if (remaining == 0) {
-                                    synchronized (inFlightLock) {
+                                synchronized (inFlightLock) {
+                                    if (inFlightCount.decrementAndGet() == 0) {
                                         inFlightLock.notifyAll();
                                     }
                                 }
@@ -181,7 +195,8 @@ public class WorkerLoop implements Worker {
         try {
             dbClient.failTask(options.getQueueName(), runId, error != null ? error : "Unknown error");
         } catch (AbsurdException e) {
-            log.severe("Failed to mark task " + runId + " as failed: " + e.getMessage());
+            log.log(java.util.logging.Level.SEVERE,
+                "Failed to mark task " + runId + " as failed", e);
         }
     }
 }
