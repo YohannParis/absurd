@@ -1,10 +1,6 @@
 name: Test Java
 
 on:
-  push:
-    paths:
-      - 'sdks/java/**'
-      - 'sql/**'
   pull_request:
     paths:
       - 'sdks/java/**'
