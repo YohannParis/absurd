@@ -97,7 +97,7 @@ public class DbClientManualTest {
             
             // Test cancelTask signature
             java.lang.reflect.Method cancelTaskMethod = DbClient.class.getMethod(
-                "cancelTask", String.class, String.class, String.class);
+                "cancelTask", String.class, String.class);
             
             // Test getTaskState signature
             java.lang.reflect.Method getTaskStateMethod = DbClient.class.getMethod(
