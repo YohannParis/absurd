@@ -132,27 +132,40 @@ public class DbClient {
      * @return the run ID of the spawned task
      * @throws AbsurdException if there's an error spawning the task
      */
-    public String spawnTask(String queue, String taskName, String input, String metadata, String parentRunId, String cronSchedule) throws AbsurdException {
+    /**
+     * Spawns a new task.
+     *
+     * <p>The SQL function signature is {@code absurd.spawn_task(queue, task_name, params jsonb,
+     * options jsonb)}, returning {@code (task_id, run_id, attempt, created)}.
+     *
+     * @param queue the queue name
+     * @param taskName the task name
+     * @param paramsJson task parameters as JSON (must be valid JSON)
+     * @param optionsJson optional options JSON ({@code max_attempts}, {@code retry_strategy},
+     *                    {@code headers}, {@code cancellation}, {@code idempotency_key});
+     *                    pass {@code null} to use database defaults
+     * @return the run_id of the first run for the spawned task
+     * @throws AbsurdException if there's an error spawning the task
+     */
+    public String spawnTask(String queue, String taskName, String paramsJson, String optionsJson) throws AbsurdException {
         if (queue == null || queue.trim().isEmpty()) {
             throw new IllegalArgumentException("queue cannot be null or empty");
         }
         if (taskName == null || taskName.trim().isEmpty()) {
             throw new IllegalArgumentException("taskName cannot be null or empty");
         }
-        validateJson(input, "input");
-        
-        String sql = "SELECT absurd.spawn_task(?, ?, CAST(? AS jsonb), CAST(? AS jsonb), ?, ?)";
-        
+        validateJson(paramsJson, "paramsJson");
+
+        String sql = "SELECT run_id::text FROM absurd.spawn_task(?, ?, CAST(? AS jsonb), CAST(? AS jsonb))";
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
+
             stmt.setString(1, queue);
             stmt.setString(2, taskName);
-            stmt.setString(3, input);
-            stmt.setString(4, metadata);
-            stmt.setString(5, parentRunId);
-            stmt.setString(6, cronSchedule);
-            
+            stmt.setString(3, paramsJson);
+            stmt.setString(4, optionsJson != null ? optionsJson : "{}");
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getString(1);

@@ -118,28 +118,21 @@ public class Absurd implements Closeable {
 
     public SpawnResult spawn(SpawnOptions options) throws AbsurdException {
         String queue = options.getQueueName() != null ? options.getQueueName() : defaultQueueName;
-        String inputJson = options.getInput() != null ? options.getInput() : "null";
-        String metadataJson = options.getMetadata() != null ? toJson(options.getMetadata()) : null;
-        String runId = getDbClient().spawnTask(
-            queue, options.getTaskName(), inputJson, metadataJson,
-            options.getParentRunId(), options.getCronSchedule()
-        );
+        String paramsJson = options.getInput() != null ? options.getInput() : "null";
+        String runId = getDbClient().spawnTask(queue, options.getTaskName(), paramsJson, null);
         return new SpawnResult(runId, queue, options.getTaskName());
     }
 
     public SpawnResult spawn(String taskName, Object params) throws AbsurdException {
-        String inputJson = toJson(params);
-        String runId = getDbClient().spawnTask(defaultQueueName, taskName, inputJson, null, null, null);
+        String paramsJson = toJson(params);
+        String runId = getDbClient().spawnTask(defaultQueueName, taskName, paramsJson, null);
         return new SpawnResult(runId, defaultQueueName, taskName);
     }
 
     public SpawnResult spawn(String taskName, Object params, SpawnOptions opts) throws AbsurdException {
         String queue = opts != null && opts.getQueueName() != null ? opts.getQueueName() : defaultQueueName;
-        String inputJson = toJson(params);
-        String metadataJson = opts != null && opts.getMetadata() != null ? toJson(opts.getMetadata()) : null;
-        String parentRunId = opts != null ? opts.getParentRunId() : null;
-        String cronSchedule = opts != null ? opts.getCronSchedule() : null;
-        String runId = getDbClient().spawnTask(queue, taskName, inputJson, metadataJson, parentRunId, cronSchedule);
+        String paramsJson = toJson(params);
+        String runId = getDbClient().spawnTask(queue, taskName, paramsJson, null);
         return new SpawnResult(runId, queue, taskName);
     }
 

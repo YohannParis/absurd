@@ -170,11 +170,10 @@ class AbsurdClientTest {
         AtomicReference<String> capturedTask = new AtomicReference<>();
         AtomicReference<String> capturedInput = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public String spawnTask(String q, String name, String input,
-                                              String meta, String parent, String cron) {
+            @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
                 capturedQueue.set(q);
                 capturedTask.set(name);
-                capturedInput.set(input);
+                capturedInput.set(paramsJson);
                 return "run-999";
             }
         };
@@ -193,8 +192,7 @@ class AbsurdClientTest {
     void spawnWithOptsOverridesQueue() throws AbsurdException {
         AtomicReference<String> capturedQueue = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public String spawnTask(String q, String name, String input,
-                                              String meta, String parent, String cron) {
+            @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
                 capturedQueue.set(q);
                 return "run-1";
             }
@@ -213,8 +211,7 @@ class AbsurdClientTest {
     void spawnViaSpawnOptionsUsesExplicitQueue() throws AbsurdException {
         AtomicReference<String> capturedQueue = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public String spawnTask(String q, String name, String input,
-                                              String meta, String parent, String cron) {
+            @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
                 capturedQueue.set(q);
                 return "run-2";
             }
@@ -388,8 +385,7 @@ class AbsurdClientTest {
         @Override public List<DbClient.ClaimedTask> claimTasks(String q, String wid, int t, int b) {
             throw new UnsupportedOperationException("claimTasks not stubbed");
         }
-        @Override public String spawnTask(String q, String name, String input,
-                                         String meta, String parent, String cron) {
+        @Override public String spawnTask(String q, String name, String paramsJson, String optsJson) {
             throw new UnsupportedOperationException("spawnTask not stubbed");
         }
         @Override public void completeTask(String q, String runId, String output) {

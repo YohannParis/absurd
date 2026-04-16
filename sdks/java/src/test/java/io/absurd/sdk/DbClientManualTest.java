@@ -85,7 +85,7 @@ public class DbClientManualTest {
             
             // Test spawnTask signature
             java.lang.reflect.Method spawnTaskMethod = DbClient.class.getMethod(
-                "spawnTask", String.class, String.class, String.class, String.class, String.class, String.class);
+                "spawnTask", String.class, String.class, String.class, String.class);
             
             // Test completeTask signature
             java.lang.reflect.Method completeTaskMethod = DbClient.class.getMethod(
@@ -175,7 +175,7 @@ public class DbClientManualTest {
         
         // Test spawnTask validation
         try {
-            dbClient.spawnTask(null, "task1", "{}", "{}", null, null);
+            dbClient.spawnTask(null, "task1", "{}", null);
             throw new AssertionError("Expected IllegalArgumentException for null queue");
         } catch (IllegalArgumentException e) {
             if (e.getMessage().contains("queue cannot be null or empty")) {
@@ -184,9 +184,9 @@ public class DbClientManualTest {
                 throw new AssertionError("Wrong error message: " + e.getMessage());
             }
         }
-        
+
         try {
-            dbClient.spawnTask("test-queue", null, "{}", "{}", null, null);
+            dbClient.spawnTask("test-queue", null, "{}", null);
             throw new AssertionError("Expected IllegalArgumentException for null taskName");
         } catch (IllegalArgumentException e) {
             if (e.getMessage().contains("taskName cannot be null or empty")) {
@@ -195,13 +195,13 @@ public class DbClientManualTest {
                 throw new AssertionError("Wrong error message: " + e.getMessage());
             }
         }
-        
+
         try {
-            dbClient.spawnTask("test-queue", "task1", null, "{}", null, null);
-            throw new AssertionError("Expected IllegalArgumentException for null input");
+            dbClient.spawnTask("test-queue", "task1", null, null);
+            throw new AssertionError("Expected IllegalArgumentException for null paramsJson");
         } catch (IllegalArgumentException e) {
-            if (e.getMessage().contains("input cannot be null")) {
-                System.out.println("✓ spawnTask validates JSON input");
+            if (e.getMessage().contains("paramsJson cannot be null")) {
+                System.out.println("✓ spawnTask validates JSON paramsJson");
             } else {
                 throw new AssertionError("Wrong error message: " + e.getMessage());
             }
