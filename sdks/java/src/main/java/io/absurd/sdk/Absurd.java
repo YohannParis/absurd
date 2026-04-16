@@ -1,5 +1,10 @@
 package io.absurd.sdk;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import io.absurd.sdk.internal.DbClient;
+import io.absurd.sdk.internal.WorkerLoop;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -94,13 +99,19 @@ public class Absurd {
     
     /**
      * Creates a new worker with the specified options.
-     * 
+     *
      * @param options the worker options
      * @return a new worker instance
      */
     public Worker createWorker(WorkerOptions options) {
-        // TODO: Implement actual worker creation
-        throw new UnsupportedOperationException("Worker creation not yet implemented");
+        if (options == null) {
+            throw new IllegalArgumentException("options cannot be null");
+        }
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(connectionString);
+        HikariDataSource dataSource = new HikariDataSource(config);
+        DbClient dbClient = new DbClient(dataSource);
+        return new WorkerLoop(this, options, dbClient, dataSource);
     }
     
     /**
