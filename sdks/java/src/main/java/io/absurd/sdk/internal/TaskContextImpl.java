@@ -71,13 +71,12 @@ public class TaskContextImpl implements TaskContext {
     @Override
     public SpawnResult spawn(SpawnOptions options) {
         try {
+            String paramsJson = options.getInput() != null ? options.getInput() : "null";
             String runId = dbClient.spawnTask(
                 options.getQueueName(),
                 options.getTaskName(),
-                options.getInput(),
-                "{}", // metadata as JSON
-                options.getParentRunId(),
-                options.getCronSchedule()
+                paramsJson,
+                null
             );
             return new SpawnResult(runId, options.getQueueName(), options.getTaskName());
         } catch (AbsurdException e) {

@@ -174,7 +174,7 @@ public class TaskContextImplManualTest {
         }
         
         @Override
-        public String spawnTask(String queue, String taskName, String input, String metadata, String parentRunId, String cronSchedule) {
+        public String spawnTask(String queue, String taskName, String paramsJson, String optionsJson) {
             return "mock-run-" + System.currentTimeMillis();
         }
         
