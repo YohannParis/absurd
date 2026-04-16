@@ -234,33 +234,28 @@ public class DbClient {
     }
     
     /**
-     * Cancels a task run.
-     * 
+     * Cancels a task by its task ID.
+     *
      * @param queue the queue name
-     * @param runId the run ID to cancel
-     * @param reason the cancellation reason
+     * @param taskId the task ID to cancel
      * @throws AbsurdException if there's an error cancelling the task
      */
-    public void cancelTask(String queue, String runId, String reason) throws AbsurdException {
+    public void cancelTask(String queue, String taskId) throws AbsurdException {
         if (queue == null || queue.trim().isEmpty()) {
             throw new IllegalArgumentException("queue cannot be null or empty");
         }
-        if (runId == null || runId.trim().isEmpty()) {
-            throw new IllegalArgumentException("runId cannot be null or empty");
+        if (taskId == null || taskId.trim().isEmpty()) {
+            throw new IllegalArgumentException("taskId cannot be null or empty");
         }
-        if (reason == null || reason.trim().isEmpty()) {
-            throw new IllegalArgumentException("reason cannot be null or empty");
-        }
-        
-        String sql = "CALL absurd.cancel_task(?, ?, ?)";
-        
+
+        String sql = "SELECT absurd.cancel_task(?, ?::uuid)";
+
         try (Connection conn = dataSource.getConnection();
-             CallableStatement stmt = conn.prepareCall(sql)) {
-            
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
             stmt.setString(1, queue);
-            stmt.setString(2, runId);
-            stmt.setString(3, reason);
-            
+            stmt.setString(2, taskId);
+
             stmt.execute();
         } catch (SQLException e) {
             handleSQLError(e);
@@ -403,8 +398,171 @@ public class DbClient {
     }
     
     /**
+     * Drops a queue and all its associated tables.
+     *
+     * @param queueName the name of the queue to drop
+     * @throws AbsurdException if there's an error dropping the queue
+     */
+    public void dropQueue(String queueName) throws AbsurdException {
+        if (queueName == null || queueName.trim().isEmpty()) {
+            throw new IllegalArgumentException("queueName cannot be null or empty");
+        }
+
+        String sql = "SELECT absurd.drop_queue(?)";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, queueName);
+            stmt.execute();
+        } catch (SQLException e) {
+            handleSQLError(e);
+            throw new AbsurdException("Failed to drop queue: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Lists all existing queues.
+     *
+     * @return list of queue names
+     * @throws AbsurdException if there's an error listing queues
+     */
+    public List<String> listQueues() throws AbsurdException {
+        String sql = "SELECT queue_name FROM absurd.list_queues()";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            List<String> queues = new ArrayList<>();
+            while (rs.next()) {
+                queues.add(rs.getString("queue_name"));
+            }
+            return queues;
+        } catch (SQLException e) {
+            handleSQLError(e);
+            throw new AbsurdException("Failed to list queues: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Emits an event to the queue.
+     *
+     * @param queue the queue name
+     * @param eventName the event name
+     * @param payloadJson the event payload as JSON (may be null)
+     * @throws AbsurdException if there's an error emitting the event
+     */
+    public void emitEvent(String queue, String eventName, String payloadJson) throws AbsurdException {
+        if (queue == null || queue.trim().isEmpty()) {
+            throw new IllegalArgumentException("queue cannot be null or empty");
+        }
+        if (eventName == null || eventName.trim().isEmpty()) {
+            throw new IllegalArgumentException("eventName cannot be null or empty");
+        }
+
+        String sql = "SELECT absurd.emit_event(?, ?, CAST(? AS jsonb))";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, queue);
+            stmt.setString(2, eventName);
+            stmt.setString(3, payloadJson);
+            stmt.execute();
+        } catch (SQLException e) {
+            handleSQLError(e);
+            throw new AbsurdException("Failed to emit event: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Snapshot of a task result from the database.
+     *
+     * @param taskId the task ID
+     * @param state the task state
+     * @param result the result JSON (if completed)
+     * @param failureReason the failure reason JSON (if failed)
+     */
+    public record TaskResultRecord(String taskId, TaskState state, String result, String failureReason) {}
+
+    /**
+     * Gets the result record for a task.
+     *
+     * @param queue the queue name
+     * @param taskId the task ID
+     * @return the task result record, or null if not found
+     * @throws AbsurdException if there's an error getting the task result
+     */
+    public TaskResultRecord getTaskResultRecord(String queue, String taskId) throws AbsurdException {
+        if (queue == null || queue.trim().isEmpty()) {
+            throw new IllegalArgumentException("queue cannot be null or empty");
+        }
+        if (taskId == null || taskId.trim().isEmpty()) {
+            throw new IllegalArgumentException("taskId cannot be null or empty");
+        }
+
+        String sql = "SELECT task_id::text, state, result::text, failure_reason::text FROM absurd.get_task_result(?, ?::uuid)";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, queue);
+            stmt.setString(2, taskId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String state = rs.getString("state");
+                    return new TaskResultRecord(
+                        rs.getString("task_id"),
+                        state != null ? TaskState.valueOf(state.toUpperCase()) : null,
+                        rs.getString("result"),
+                        rs.getString("failure_reason")
+                    );
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            handleSQLError(e);
+            throw new AbsurdException("Failed to get task result: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Retries a failed task, optionally spawning a new task.
+     *
+     * @param queue the queue name
+     * @param taskId the task ID to retry
+     * @param spawnNew if true, spawn a new task instead of retrying in place
+     * @throws AbsurdException if there's an error retrying the task
+     */
+    public void retryTask(String queue, String taskId, boolean spawnNew) throws AbsurdException {
+        if (queue == null || queue.trim().isEmpty()) {
+            throw new IllegalArgumentException("queue cannot be null or empty");
+        }
+        if (taskId == null || taskId.trim().isEmpty()) {
+            throw new IllegalArgumentException("taskId cannot be null or empty");
+        }
+
+        String options = spawnNew ? "{\"spawn_new\":true}" : "{}";
+        String sql = "SELECT task_id FROM absurd.retry_task(?, ?::uuid, CAST(? AS jsonb))";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, queue);
+            stmt.setString(2, taskId);
+            stmt.setString(3, options);
+            stmt.execute();
+        } catch (SQLException e) {
+            handleSQLError(e);
+            throw new AbsurdException("Failed to retry task: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Handles SQL errors and converts them to appropriate exceptions.
-     * 
+     *
      * @param e the SQL exception to handle
      * @throws AbsurdException with appropriate error details
      */
