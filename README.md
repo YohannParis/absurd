@@ -53,6 +53,7 @@ Currently SDKs exist for the following languages:
 
 * [TypeScript](sdks/typescript) (and JavaScript)
 * [Python](sdks/python)
+* [Java](sdks/java)
 * [Go](sdks/go/absurd) *(experimental bootstrap)*
 
 ## Push vs Pull
@@ -117,6 +118,9 @@ npm install absurd-sdk
 
 # Python
 uv add absurd-sdk
+
+# Java
+# Add to your build.gradle or pom.xml (see sdks/java/README.md)
 
 # Go
 go get github.com/earendil-works/absurd/sdks/go/absurd@latest
@@ -206,6 +210,7 @@ More detail lives in the docs:
 - [Quickstart](https://earendil-works.github.io/absurd/quickstart/)
 - [TypeScript SDK](https://earendil-works.github.io/absurd/sdks/typescript/)
 - [Python SDK](https://earendil-works.github.io/absurd/sdks/python/)
+- [Java SDK](https://earendil-works.github.io/absurd/sdks/java/)
 - [Go SDK](https://earendil-works.github.io/absurd/sdks/go/) *(experimental)*
 - [Database Setup and Migrations](https://earendil-works.github.io/absurd/database/)
 - [Concepts](https://earendil-works.github.io/absurd/concepts/) — includes retry semantics, worker claims, and idempotency keys
