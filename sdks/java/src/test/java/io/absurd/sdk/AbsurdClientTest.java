@@ -115,7 +115,7 @@ class AbsurdClientTest {
     void createQueueWithNameCallsDbClient() throws AbsurdException {
         AtomicReference<String> created = new AtomicReference<>();
         StubDbClient stub = new StubDbClient() {
-            @Override public void createQueue(String q, String retry, String cancel) {
+            @Override public void createQueue(String q) {
                 created.set(q);
             }
         };
@@ -404,10 +404,10 @@ class AbsurdClientTest {
         @Override public String getTaskResult(String q, String runId) {
             throw new UnsupportedOperationException("getTaskResult not stubbed");
         }
-        @Override public void createQueue(String q, String retry, String cancel) {
+        @Override public void createQueue(String q) {
             throw new UnsupportedOperationException("createQueue not stubbed");
         }
-        @Override public void heartbeatTask(String q, String runId) {
+        @Override public void heartbeatTask(String q, String runId, int extensionSecs) {
             throw new UnsupportedOperationException("heartbeatTask not stubbed");
         }
         @Override public void dropQueue(String q) {

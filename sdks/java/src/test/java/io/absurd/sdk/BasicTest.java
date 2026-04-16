@@ -4,6 +4,7 @@ import io.absurd.sdk.internal.TaskContextImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -30,11 +31,15 @@ class BasicTest {
         assertNotNull(result.getTaskId(), "taskId must be non-null");
         assertNotNull(result.getRunId(),  "runId must be non-null");
 
-        String state = TestSetup.queryScalar(
-            "SELECT state FROM absurd.t_" + TestSetup.DEFAULT_QUEUE
-                + " WHERE task_id = '" + result.getTaskId() + "'::uuid",
-            String.class
-        );
+        String state;
+        try (var conn = TestSetup.getConnection();
+             var stmt = conn.prepareStatement(
+                 "SELECT state FROM absurd.t_" + TestSetup.DEFAULT_QUEUE + " WHERE task_id = ?::uuid")) {
+            stmt.setString(1, result.getTaskId());
+            try (var rs = stmt.executeQuery()) {
+                state = rs.next() ? rs.getString(1) : null;
+            }
+        }
         assertEquals("pending", state);
     }
 

@@ -76,7 +76,6 @@ class QueueTest {
         Absurd absurd = TestSetup.createAbsurd();
         CreateQueueOptions opts = CreateQueueOptions.builder()
             .queueName(EXTRA)
-            .retryStrategy(new RetryStrategy(5, 2_000, 1.5))
             .build();
         absurd.createQueue(opts);
 

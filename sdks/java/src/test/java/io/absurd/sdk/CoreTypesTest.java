@@ -71,11 +71,8 @@ class CoreTypesTest {
     void testCreateQueueOptions() {
         CreateQueueOptions options = CreateQueueOptions.builder()
                 .queueName("test-queue")
-                .retryStrategy(new RetryStrategy(3, 1000, 2.0))
                 .build();
-        
+
         assertEquals("test-queue", options.getQueueName());
-        assertNotNull(options.getRetryStrategy());
-        assertEquals(3, options.getRetryStrategy().getMaxAttempts());
     }
 }

@@ -21,21 +21,30 @@ public class TaskContextImpl implements TaskContext {
     private final Map<String, String> metadata;
     private final Map<String, Object> checkpointCache = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final int claimTimeoutSecs;
     private int stepCounter = 0;
 
     public TaskContextImpl(DbClient dbClient, ClaimedTask claimedTask, String queueName,
                            Map<String, String> metadata) {
+        this(dbClient, claimedTask, queueName, metadata, 30);
+    }
+
+    public TaskContextImpl(DbClient dbClient, ClaimedTask claimedTask, String queueName,
+                           Map<String, String> metadata, int claimTimeoutSecs) {
         this.dbClient = dbClient;
         this.claimedTask = claimedTask;
         this.queueName = queueName;
         this.metadata = metadata != null ? new HashMap<>(metadata) : new HashMap<>();
+        this.claimTimeoutSecs = claimTimeoutSecs;
     }
 
     @Override public String getRunId()    { return claimedTask.runId(); }
     @Override public String getQueueName() { return queueName; }
     @Override public String getTaskName() { return claimedTask.taskName(); }
     @Override public int getAttempt()     { return claimedTask.attempt(); }
-    @Override public int getMaxAttempts() { return 3; }
+    @Override public int getMaxAttempts() {
+        return claimedTask.maxAttempts() != null ? claimedTask.maxAttempts() : 3;
+    }
 
     @Override
     public Map<String, String> getMetadata() {
@@ -232,23 +241,23 @@ public class TaskContextImpl implements TaskContext {
     }
 
     /**
-     * Extends the worker's claim on this task run.
+     * Extends the worker's claim on this task run by the configured claim timeout.
      */
     public void heartbeat() {
         try {
-            dbClient.heartbeatTask(queueName, claimedTask.runId());
+            dbClient.heartbeatTask(queueName, claimedTask.runId(), claimTimeoutSecs);
         } catch (AbsurdException e) {
             throw new RuntimeException("Failed to heartbeat task: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Awaits the result of another task by polling the database.
+     * Not yet implemented.
      *
-     * @throws SuspendTask if the other task is still running (triggers task suspension)
+     * @throws UnsupportedOperationException always
      */
     public String awaitTaskResult(String runId, Duration timeout) throws SuspendTask {
-        throw new SuspendTask("Task suspended waiting for result of: " + runId);
+        throw new UnsupportedOperationException("awaitTaskResult is not yet implemented");
     }
 
     // ---- Nested interface ----

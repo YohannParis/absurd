@@ -150,10 +150,11 @@ public class WorkerLoop implements Worker {
         }
 
         // 3. Create TaskContextImpl
-        TaskContextImpl ctx = new TaskContextImpl(dbClient, claimedTask, options.getQueueName(), Map.of());
+        int claimTimeout = options.getPollTimeoutMs();
+        int claimTimeoutSecs = Math.max(1, claimTimeout / 1000);
+        TaskContextImpl ctx = new TaskContextImpl(dbClient, claimedTask, options.getQueueName(), Map.of(), claimTimeoutSecs);
 
         // 4. Schedule watchdog: warn at claimTimeout, exit JVM at 2x
-        int claimTimeout = options.getPollTimeoutMs();
         Thread watchdog = Thread.ofVirtual()
             .name("absurd-watchdog-" + claimedTask.runId())
             .start(() -> {

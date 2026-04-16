@@ -93,13 +93,11 @@ public class Absurd implements Closeable {
     // ---- Queue management ----
 
     public void createQueue(CreateQueueOptions options) throws AbsurdException {
-        String retryJson = toJson(toRetryMap(options.getRetryStrategy()));
-        String cancelJson = toJson(toCancelMap(options.getCancellationPolicy()));
-        getDbClient().createQueue(options.getQueueName(), retryJson, cancelJson);
+        getDbClient().createQueue(options.getQueueName());
     }
 
     public void createQueue(String queueName) throws AbsurdException {
-        getDbClient().createQueue(queueName, "{}", "{}");
+        getDbClient().createQueue(queueName);
     }
 
     public void dropQueue(String queueName) throws AbsurdException {
@@ -288,7 +286,20 @@ public class Absurd implements Closeable {
         if (def == null) return null;
         RetryStrategy strategy = def.getRetryStrategy();
         if (strategy == null) return null;
-        return toJson(Map.of("max_attempts", strategy.getMaxAttempts()));
+
+        Map<String, Object> retryStrategy;
+        if (strategy.getInitialDelayMs() == 0) {
+            retryStrategy = Map.of("kind", "none");
+        } else if (strategy.getBackoffFactor() == 1.0) {
+            retryStrategy = Map.of("kind", "fixed",
+                "base_seconds", strategy.getInitialDelayMs() / 1000.0);
+        } else {
+            retryStrategy = Map.of("kind", "exponential",
+                "base_seconds", strategy.getInitialDelayMs() / 1000.0,
+                "factor", strategy.getBackoffFactor());
+        }
+
+        return toJson(Map.of("max_attempts", strategy.getMaxAttempts(), "retry_strategy", retryStrategy));
     }
 
     private String toJson(Object obj) throws AbsurdException {
@@ -298,24 +309,6 @@ public class Absurd implements Closeable {
         } catch (JsonProcessingException e) {
             throw new AbsurdException("Failed to serialize to JSON: " + e.getMessage(), e);
         }
-    }
-
-    private Map<String, Object> toRetryMap(RetryStrategy strategy) {
-        if (strategy == null) return Map.of();
-        return Map.of(
-            "max_attempts", strategy.getMaxAttempts(),
-            "initial_delay_ms", strategy.getInitialDelayMs(),
-            "backoff_factor", strategy.getBackoffFactor(),
-            "max_delay_ms", strategy.getMaxDelayMs()
-        );
-    }
-
-    private Map<String, Object> toCancelMap(CancellationPolicy policy) {
-        if (policy == null) return Map.of();
-        return Map.of(
-            "timeout_ms", policy.getTimeoutMs(),
-            "interruptible", policy.isInterruptible()
-        );
     }
 
     // ---- Builder ----

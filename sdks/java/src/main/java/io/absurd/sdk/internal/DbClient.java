@@ -40,7 +40,7 @@ public class DbClient {
     }
 
     /** A claimed task returned by {@link #claimTasks}. */
-    public record ClaimedTask(String runId, String taskId, String taskName, String input, int attempt) {}
+    public record ClaimedTask(String runId, String taskId, String taskName, String input, int attempt, Integer maxAttempts) {}
 
     /** The task_id and run_id returned by {@link #spawnTask}. */
     public record SpawnRecord(String taskId, String runId) {}
@@ -81,7 +81,7 @@ public class DbClient {
 
         // claim_task is a set-returning function, not a procedure.
         // Column "params" is aliased to "input" to match ClaimedTask.input().
-        String sql = "SELECT run_id::text, task_id::text, attempt, task_name, params::text AS input " +
+        String sql = "SELECT run_id::text, task_id::text, attempt, task_name, params::text AS input, max_attempts " +
                      "FROM absurd.claim_task(?, ?, ?, ?)";
 
         try (Connection conn = dataSource.getConnection();
@@ -95,12 +95,14 @@ public class DbClient {
             try (ResultSet rs = stmt.executeQuery()) {
                 List<ClaimedTask> tasks = new ArrayList<>();
                 while (rs.next()) {
+                    int maxAttempts = rs.getInt("max_attempts");
                     tasks.add(new ClaimedTask(
                         rs.getString("run_id"),
                         rs.getString("task_id"),
                         rs.getString("task_name"),
                         rs.getString("input"),
-                        rs.getInt("attempt")
+                        rs.getInt("attempt"),
+                        rs.wasNull() ? null : maxAttempts
                     ));
                 }
                 return tasks;
@@ -399,10 +401,8 @@ public class DbClient {
      * Creates a new unpartitioned queue.
      *
      * <p>Calls {@code absurd.create_queue(queue_name)}.
-     * The SQL schema does not accept retry/cancellation JSON; those params are ignored.
      */
-    public void createQueue(String queueName, String retryStrategyJson, String cancellationPolicyJson)
-            throws AbsurdException {
+    public void createQueue(String queueName) throws AbsurdException {
         if (queueName == null || queueName.trim().isEmpty()) {
             throw new IllegalArgumentException("queueName cannot be null or empty");
         }
@@ -465,11 +465,11 @@ public class DbClient {
     // ---- Heartbeat ----
 
     /**
-     * Extends the claim on a running task.
+     * Extends the claim on a running task by {@code extensionSecs} seconds.
      *
      * <p>Calls {@code absurd.extend_claim(queue, run_id, extension_seconds)}.
      */
-    public void heartbeatTask(String queue, String runId) throws AbsurdException {
+    public void heartbeatTask(String queue, String runId, int extensionSecs) throws AbsurdException {
         if (queue == null || queue.trim().isEmpty()) {
             throw new IllegalArgumentException("queue cannot be null or empty");
         }
@@ -484,7 +484,7 @@ public class DbClient {
 
             stmt.setString(1, queue);
             stmt.setString(2, runId);
-            stmt.setInt(3, 30);
+            stmt.setInt(3, extensionSecs);
             stmt.execute();
         } catch (SQLException e) {
             handleSQLError(e);

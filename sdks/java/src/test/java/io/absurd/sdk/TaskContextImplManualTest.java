@@ -32,7 +32,7 @@ public class TaskContextImplManualTest {
         System.out.println("Testing basic functionality...");
         
         // Create mock objects
-        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1);
+        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1, 3);
         MockDbClient mockDbClient = new MockDbClient();
 
         TaskContextImpl context = new TaskContextImpl(mockDbClient, claimedTask, "test-queue", Map.of("key", "value"));
@@ -88,7 +88,7 @@ public class TaskContextImplManualTest {
     private static void testMethodSignatures() {
         System.out.println("Testing method signatures...");
         
-        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1);
+        DbClient.ClaimedTask claimedTask = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1, 3);
         MockDbClient mockDbClient = new MockDbClient();
         TaskContextImpl context = new TaskContextImpl(mockDbClient, claimedTask, "test-queue", Map.of());
         
@@ -157,9 +157,9 @@ public class TaskContextImplManualTest {
         
         try {
             context.awaitTaskResult("other-run", Duration.ofSeconds(30));
-            throw new AssertionError("Expected SuspendTask exception");
-        } catch (SuspendTask e) {
-            System.out.println("✓ awaitTaskResult throws SuspendTask correctly");
+            throw new AssertionError("Expected UnsupportedOperationException");
+        } catch (UnsupportedOperationException e) {
+            System.out.println("✓ awaitTaskResult throws UnsupportedOperationException correctly");
         } catch (Exception e) {
             throw new AssertionError("Wrong exception type: " + e.getClass().getName());
         }
@@ -185,7 +185,7 @@ public class TaskContextImplManualTest {
         }
         
         @Override
-        public void heartbeatTask(String queue, String runId) {
+        public void heartbeatTask(String queue, String runId, int extensionSecs) {
             // No-op for testing
         }
     }

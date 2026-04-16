@@ -59,7 +59,7 @@ public class DbClientManualTest {
     private static void testClaimedTaskRecord() {
         System.out.println("Testing ClaimedTask record...");
         
-        DbClient.ClaimedTask task = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1);
+        DbClient.ClaimedTask task = new DbClient.ClaimedTask("run123", "task-123", "test-task", "{}", 1, 3);
         
         if ("run123".equals(task.runId()) &&
             "test-task".equals(task.taskName()) &&

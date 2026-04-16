@@ -239,17 +239,13 @@ public class CompleteAPITest {
     
     private static void testCreateQueueOptions() {
         System.out.println("Testing CreateQueueOptions...");
-        
+
         CreateQueueOptions options = CreateQueueOptions.builder()
                 .queueName("test-queue")
-                .retryStrategy(new RetryStrategy(3, 1000, 2.0))
-                .cancellationPolicy(new CancellationPolicy(30000, true))
                 .build();
-        
+
         assertEquals("test-queue", options.getQueueName());
-        assertNotNull(options.getRetryStrategy());
-        assertNotNull(options.getCancellationPolicy());
-        
+
         // Test builder validation
         try {
             CreateQueueOptions.builder().build();
@@ -257,7 +253,7 @@ public class CompleteAPITest {
         } catch (IllegalStateException e) {
             assertTrue(e.getMessage().contains("queueName must be specified"));
         }
-        
+
         System.out.println("✓ CreateQueueOptions works correctly");
     }
     
