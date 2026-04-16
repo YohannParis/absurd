@@ -248,6 +248,8 @@ public class DbClient {
             throw new IllegalArgumentException("taskId cannot be null or empty");
         }
 
+        // ?::uuid is a PostgreSQL cast applied to the bound parameter value, not
+        // string concatenation — the JDBC driver sends the literal ? to the server.
         String sql = "SELECT absurd.cancel_task(?, ?::uuid)";
 
         try (Connection conn = dataSource.getConnection();

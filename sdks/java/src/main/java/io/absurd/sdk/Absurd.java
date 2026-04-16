@@ -128,14 +128,14 @@ public class Absurd implements Closeable {
     }
 
     public SpawnResult spawn(String taskName, Object params) throws AbsurdException {
-        String inputJson = serializeParams(params);
+        String inputJson = toJson(params);
         String runId = getDbClient().spawnTask(defaultQueueName, taskName, inputJson, null, null, null);
         return new SpawnResult(runId, defaultQueueName, taskName);
     }
 
     public SpawnResult spawn(String taskName, Object params, SpawnOptions opts) throws AbsurdException {
         String queue = opts != null && opts.getQueueName() != null ? opts.getQueueName() : defaultQueueName;
-        String inputJson = serializeParams(params);
+        String inputJson = toJson(params);
         String metadataJson = opts != null && opts.getMetadata() != null ? toJson(opts.getMetadata()) : null;
         String parentRunId = opts != null ? opts.getParentRunId() : null;
         String cronSchedule = opts != null ? opts.getCronSchedule() : null;
@@ -146,12 +146,12 @@ public class Absurd implements Closeable {
     // ---- Events ----
 
     public void emitEvent(String eventName, Object payload) throws AbsurdException {
-        String payloadJson = payload != null ? serializeParams(payload) : null;
+        String payloadJson = payload != null ? toJson(payload) : null;
         getDbClient().emitEvent(defaultQueueName, eventName, payloadJson);
     }
 
     public void emitEvent(String queueName, String eventName, Object payload) throws AbsurdException {
-        String payloadJson = payload != null ? serializeParams(payload) : null;
+        String payloadJson = payload != null ? toJson(payload) : null;
         getDbClient().emitEvent(queueName, eventName, payloadJson);
     }
 
@@ -240,11 +240,18 @@ public class Absurd implements Closeable {
 
     // ---- Lifecycle ----
 
+    /**
+     * Stops any active worker and closes the connection pool if Absurd created it via .url().
+     * When a DataSource is provided via .dataSource(), the caller retains ownership and must
+     * close it independently.
+     */
     @Override
     public void close() {
         if (activeWorker != null && activeWorker.isRunning()) {
             activeWorker.stop();
         }
+        // ownedDataSource is true only when we created the HikariDataSource from a URL.
+        // null-safe: dataSource may still be null if no DB call was ever made.
         if (ownedDataSource && dataSource instanceof HikariDataSource hds) {
             hds.close();
         }
@@ -278,15 +285,6 @@ public class Absurd implements Closeable {
             }
         }
         return dbClient;
-    }
-
-    private String serializeParams(Object params) throws AbsurdException {
-        if (params == null) return "null";
-        try {
-            return objectMapper.writeValueAsString(params);
-        } catch (JsonProcessingException e) {
-            throw new AbsurdException("Failed to serialize params to JSON: " + e.getMessage(), e);
-        }
     }
 
     private String toJson(Object obj) throws AbsurdException {
